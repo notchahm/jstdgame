@@ -1,0 +1,11 @@
+{
+    "name": "jstdgame",
+    "version": "0.0.1",
+    "description": "A browser-based tower defense game implemented in javascript",
+    "author": "Chahm An <notchahm@gmail.com>",
+    "main": "game_server.js",
+    "dependencies": {
+        "express": "4.x"
+    },
+    "license": "MIT"
+}
