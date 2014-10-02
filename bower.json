@@ -1,0 +1,13 @@
+{
+  "name": "jstdgame",
+  "version": "0.0.1",
+  "homepage": "https://github.com/notchahm/jstdgame",
+  "authors": [
+    "Chahm An <notchahm@gmail.com>"
+  ],
+  "description": "A browser-based tower defense game implemented in javascript",
+  "license": "MIT",
+  "dependencies": {
+    "jquery": "~2.1.1"
+  }
+}

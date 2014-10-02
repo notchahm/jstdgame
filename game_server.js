@@ -12,6 +12,6 @@ var express = require('express');
 var port = 8888;
 var app = express();
 //app.use(body_parser.urlencoded({extended:false})); // to support URL-encoded bodies
-app.use('/', express.static(__dirname));
+app.use('/', express.static(__dirname + '/public'));
 app.listen(port);
 console.log('info', 'Listening on port ' + port);

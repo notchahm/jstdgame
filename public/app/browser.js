@@ -163,7 +163,7 @@ function BrowserView()
             {
                 handleRenderImage(this, sprite, context);
             }
-            object_image.src = "images/" + sprite.image;
+            object_image.src = "../dist/img/" + sprite.image;
         });
     }
 

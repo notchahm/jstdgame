@@ -1,0 +1,6 @@
+node_modules
+bower_components
+npm-debug.log
+*.*.swp
+public/vendor/
+public/dist/
