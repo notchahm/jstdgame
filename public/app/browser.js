@@ -24,10 +24,14 @@ function BrowserGame()
 //This contains all of the data objects for the game
 function BrowserModel(parent)
 {
-	function GameObject(name, image, xpos, ypos, xvel, yvel, width, height)
+	function GameObjectModel(index, name, type, image, xpos, ypos, xvel, yvel, width, height, hp)
 	{
-		//string identifer of object
+		//numerical index and string identifer of object
+		this.index = index;
 		this.name = name;
+
+		//type of object -- e.g. base, tower, foe
+		this.type = type;
 
 		//position of object on canvas
 		this.xpos = xpos;
@@ -41,6 +45,9 @@ function BrowserModel(parent)
 		this.width = width;
 		this.height = height;
 
+		//hit points of object
+		this.hit_points = hp;
+
 		//the image file, loaded my name of image file
 		this.image = new Image();
 		this.image.src = "../dist/img/" + image;
@@ -48,11 +55,12 @@ function BrowserModel(parent)
 	}
 	this.parent = parent;
 	this.objects = new Array();
-	//temporary test data
+	//temporary test data. This will eventually be generated on and fetched from the game server
 	canvas = $('#game_canvas')[0];
-	this.objects.push(new GameObject("tower","sphere.png",canvas.width/2,canvas.height/2,0,0,50,50));
-	this.objects.push(new GameObject("foe1","cube.png",canvas.width/2,0,0,1,50,50));
-	this.objects.push(new GameObject("foe2","cube.png",0,canvas.height/2,1,0,50,50));
+	object_index = 0;
+	this.objects.push(new GameObjectModel(object_index++,"base","base","sphere.png",canvas.width/2,canvas.height/2,0,0,50,50,10));
+	this.objects.push(new GameObjectModel(object_index++,"foe1","foe","cube.png",canvas.width/2,0,0,1,50,50,10));
+	this.objects.push(new GameObjectModel(object_index++,"foe2","foe","cube.png",0,canvas.height/2,1,0,50,50,10));
 	this.mouse = {"xpos":-1,"ypos":-1,"radius":5};
 	this.setMousePos = function(xpos, ypos)
 	{
@@ -67,14 +75,63 @@ function BrowserModel(parent)
 	{
 		return this.objects;
 	}
+	this.getObjectIndexFromName = function(object_name)
+	{
+		var object_index = -1;
+		for (object_index = 0; object_index < this.objects.length; object_index++)
+		{
+			if (this.objects[object_index].name == object_name)
+				return object_index;
+		}
+		return -1;	//not found
+	}
+	this.removeObject = function(object_index)
+	{
+		this.objects.splice(object_index,1);
+	}
 }
 
 //Handles various events driven by browser or communication with server
 function BrowserController(parent)
 {
+	function GameObjectController(parent, model)
+	{
+		this.parent = parent;
+		this.model = model;
+
+		//this method seems appropriate from an Object-oriented standpoint, but 
+		// the drawing gets handled within the view and this is left uncalled
+		this.draw = function()
+		{
+			this.parent.view.drawObject(this.model);
+		}
+		//check to see if a mouse click event should trigger an action for this object
+		this.handleClick = function(xpos, ypos)
+		{
+			if (xpos >= this.model.xpos - this.model.width/2 && xpos < this.model.xpos + this.model.width/2 &&
+				ypos >= this.model.ypos - this.model.height/2 && ypos < this.model.ypos + this.model.height/2)
+			{
+				if (this.model.type == "foe")
+				{
+					this.handleHit(1);
+				}
+			}
+		}
+		this.handleHit = function(damage)
+		{
+			this.model.hit_points -= damage;
+			console.log(this.model.hit_points);
+			if (this.model.hit_points <= 0)
+			{
+				this.parent.destroyObjectByName(this.model.name);
+			}
+		}
+	}
+
 	this.parent = parent;
 	this.model = parent.model;
 	this.view = parent.view;
+	this.objects = new Array();
 
 	var controller = this;
 	// This starts an animation loop that cycles at browser refesh intervals
@@ -86,7 +143,6 @@ function BrowserController(parent)
 
 	this.handleTick = function()
 	{
-		console.log("tick");
 		this.model.objects.forEach(function(object)
 		{
 			//update object positons accoring to their velocities
@@ -97,6 +153,10 @@ function BrowserController(parent)
 			{
 				object.yvel *= -1;
 			}
+			if (object.xpos < 0 || object.xpos > $('#game_canvas')[0].width)
+			{
+				object.xvel *= -1;
+			}
 			
 		});
 		this.handleRedraw();
@@ -105,7 +165,13 @@ function BrowserController(parent)
 
 	this.init = function()
 	{
-		this.view.draw(this.model);
+		this.model.objects.forEach(function(object)
+		{
+			controller.objects.push(new GameObjectController(controller,object));
+		});
+		this.waitForResources();
+		this.registerBrowserEventHandlers();
+//		this.view.draw(this.model);
 		animate();
 	}
 
@@ -127,12 +193,12 @@ function BrowserController(parent)
 	{
 		var xpos;
 		var ypos;
-		if (!MouseEvent) var MouseEvent = window.event;
+		if (!MouseEvent) MouseEvent = window.event;
 		var elementClicked = MouseEvent.target;
 		if (MouseEvent.offsetX || MouseEvent.offsetY)
 		{
-			xpos = Math.floor(MouseEvent.offsetX * elementClicked.width / elementClicked.offsetWidth);
-			ypos = Math.floor(MouseEvent.offsetY * elementClicked.height / elementClicked.offsetHeight);
+			xpos = MouseEvent.offsetX;
+			ypos = MouseEvent.offsetY;
 		}
 		else if (MouseEvent.pageX || MouseEvent.pageY)
 		{
@@ -144,25 +210,52 @@ function BrowserController(parent)
 			xpos = MouseEvent.clientX-elementClicked.offsetLeft;
 			ypos = MouseEvent.clientY-elementClicked.offsetTop;
 		}
+		xpos = Math.floor(xpos * elementClicked.width / elementClicked.offsetWidth);
+		ypos = Math.floor(ypos * elementClicked.height / elementClicked.offsetHeight);
 
 		var message_string = "event_type=" + MouseEvent.type + "&mouse_x=" + xpos + "&mouse_y=" +ypos;
 		console.log(message_string);
 		this.model.setMousePos(xpos,ypos);
+		this.checkHits(xpos,ypos);
 		this.handleRedraw();
 	}
 
-	var event_handler = this;
-	//Assign this object's handler methods to jQuery's event handlers
-	$(document).keypress(this.handleKey);
-	$(document).mousedown(function() { event_handler.handleMouse() });
-	$(document).mouseup(function() { event_handler.handleMouse() });
-	//$(document).mousemove(function() { event_handler.mouse() });
+	//checks position against each object to see whether a click was within the object's bounding box
+	this.checkHits = function(xpos, ypos)
+	{
+		this.objects.forEach(function(object)
+		{
+			object.handleClick(xpos,ypos);
+		});
+	}
 
-	//disable context menu on right click
-	document.oncontextmenu = function() {return false;};
+	this.destroyObjectByName = function(object_name)
+	{
+		var object_index = this.model.getObjectIndexFromName(object_name);
+		this.objects.splice(object_index,1);
+		this.model.removeObject(object_index);
+	}
 
-	//pass on resize events to appropriate screen
-	window.onresize=(function() { event_handler.handleRedraw() });
+	this.registerBrowserEventHandlers = function()
+	{
+
+		//Assign this object's handler methods to jQuery's event handlers
+		$(document).keypress(this.handleKey);
+		$(document).mousedown(function(mouse_event) { controller.handleMouse(mouse_event) });
+		//$(document).mouseup(function(mouse_event) { controller.handleMouse(mouse_event) });
+		//$(document).mousemove(function(mouse_event) { controller.handleMousemouse_event() });
+
+		//disable context menu on right click
+		document.oncontextmenu = function() {return false;};
+
+		//pass on resize events to appropriate screen
+		window.onresize=(function() { controller.handleRedraw() });
+	}
+	this.waitForResources = function()
+	{
+		//TODO: Wait for all resources (e.g. images, sounds) to finish loading before handling stuff
+		//		Display a "Loading..." splash screen while this is happening
+	}
 }
 
 // Handles display of game in browser
@@ -171,6 +264,7 @@ function BrowserView()
 	// Initialize members
 	this.canvas = $('#game_canvas')[0];
 	this.canvas_context = this.canvas.getContext("2d");
+	var view = this;
 
 	// This gets called to update the canvas whenever something has changed
 	this.clear = function()
@@ -215,11 +309,14 @@ function BrowserView()
 	// This draws the image corresponding to each sprite object at is corresponding position
 	this.drawObjects = function(model)
 	{
-		var context = this.canvas_context;
 		model.objects.forEach(function(object)
 		{
-			context.drawImage(object.image, object.xpos-(object.width/2), object.ypos-(object.height/2), object.width, object.height);
+			view.drawObject(object);
 		});
 	}
 
+	this.drawObject = function(object)
+	{
+			this.canvas_context.drawImage(object.image, object.xpos-(object.width/2), object.ypos-(object.height/2), object.width, object.height);
+	}
 }
