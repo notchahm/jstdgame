@@ -41,7 +41,9 @@ module.exports = function (grunt) {
       },
 
       copyJquery: {
-        command: 'cp bower_components/jquery/dist/jquery.js public/vendor/js'
+        command: [
+          'cp bower_components/jquery/dist/jquery.js public/vendor/js'
+        ].join('&&')
       },
 
       clean: {

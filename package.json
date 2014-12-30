@@ -25,7 +25,9 @@
     "grunt": "^0.4.5",
     "grunt-cli": "^0.1.13",
     "grunt-shell": "^1.1.1",
-    "nodemon": "^1.2.1"
+    "nodemon": "^1.2.1",
+    "mongodb": "^1.4.19",
+    "ws": "^0.4.32"
   },
   "dependencies": {
     "grunt-contrib-imagemin": "^0.8.1",
