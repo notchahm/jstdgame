@@ -2,10 +2,10 @@
   "name": "jstdgame",
   "version": "0.0.1",
   "description": "A browser-based tower defense game implemented in javascript",
-  "main": "game_server.js",
+  "main": "app/GameServer.js",
   "private": true,
   "scripts": {
-    "start": "nodemon game_server.js",
+    "start": "nodemon app/GameServer.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

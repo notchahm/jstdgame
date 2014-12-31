@@ -112,7 +112,7 @@ var BrowserController = function(parent)
 		}
 	}
 
-	this.deleteCookies = function()
+	var deleteCookies = function()
 	{
 		document.cookie = "session_id=;expires=Thu, 01 Jan 1970 00:00:01 GMT";
 	}
@@ -161,6 +161,18 @@ var BrowserController = function(parent)
 				{
 					m_session_id = message.session_id;
 					writeCookies();
+				}
+				else if (object.action == "resume_fail")
+				{
+					deleteCookies();
+					canvas = $('#game_canvas')[0];
+					var setup_message =
+					{
+						method: 'SETUP',
+						height: canvas.height,
+						width: canvas.width
+					};
+					m_connection.send(JSON.stringify(setup_message));
 				}
 				else if (object.action == "spawn")
 				{

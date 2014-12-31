@@ -98,13 +98,13 @@ var object_controller = function ObjectController(parent, model)
 		if (object.xvel != 0)
 		{
 			var x_ms = 1000/object.xvel;
-			var x_timer_id = setInterval(object.increment_xpos, x_ms, object);
+			var x_timer_id = setInterval(object.update_xpos, x_ms, object);
 			object.intervals.push(x_timer_id);
 		}
 		if (object.yvel != 0)
 		{
 			var y_ms = 1000/object.yvel;
-			var y_timer_id = setInterval(object.increment_ypos, y_ms, object);
+			var y_timer_id = setInterval(object.update_ypos, y_ms, object);
 			object.intervals.push(y_timer_id);
 		}
 	}
@@ -186,6 +186,7 @@ var object_controller = function ObjectController(parent, model)
 			}
 			object.name = type + "_" + count;
 
+		console.log(object);
 			//insert created object into database
 			var insert_callback = function(error, results)
 			{
@@ -265,7 +266,7 @@ var object_controller = function ObjectController(parent, model)
 					ypos < object.ypos + object.height/2)
 				{
 					var damage = 1;
-					m_this.handle_hit(object, damage);
+					handle_hit(object, damage);
 				}
 			}
 		});

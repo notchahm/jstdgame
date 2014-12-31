@@ -73,6 +73,19 @@ var server_controller = function ServerController(parent)
 		});
 	}
 
+	var spawn_initial_objects = function(session_id, dimensions)
+	{
+		var init_pos = [dimensions.width/2, dimensions.height/2];
+		var init_vel = [0,0];
+		m_object_controller.spawn(session_id, "base", init_pos, init_vel);
+		init_pos = [dimensions.width/2, 0];
+		init_vel = [0, 20];
+		m_object_controller.spawn(session_id, "foe", init_pos, init_vel);
+		init_pos = [0, dimensions.height/2];
+		init_vel = [20, 0];
+		m_object_controller.spawn(session_id, "foe", init_pos, init_vel);
+	}
+
 	// for setup requests, we need to generate a new session objects
 	// and insert them into the database
 	var new_session = function(request, callback)
@@ -91,17 +104,11 @@ var server_controller = function ServerController(parent)
 				width: request.message.width,
 				height: request.message.height
 			};
-			m_parent.model.insert('dimensions', dimensions_object);
+			m_parent.model.insert('dimensions', dimensions_object, function()
+			{
+				spawn_initial_objects(session_id, request.message);
+			});
 
-			var init_pos = [request.message.width/2, request.message.height/2];
-			var init_vel = [0,0];
-			m_object_controller.spawn(session_id, "base", init_pos, init_vel);
-			init_pos = [request.message.width/2, 0];
-			init_vel = [0, 20];
-			m_object_controller.spawn(session_id, "foe", init_pos, init_vel);
-			init_pos = [0, request.message.height/2];
-			init_vel = [20, 0];
-			m_object_controller.spawn(session_id, "foe", init_pos, init_vel);
 		});
 	}
 
@@ -109,12 +116,22 @@ var server_controller = function ServerController(parent)
 	//  finds existing session objects and resume updating
 	var resume_session = function(request, callback)
 	{
-			var session_id = request.message.session_id;
-			m_sessions[session_id] = { socket: request.socket, id: session_id };
-			m_object_controller.resume(session_id);
-			response.session_id = session_id;
-			response.action = "resume";
+		var session_id = request.message.session_id;
+		m_sessions[session_id] = { socket: request.socket, id: session_id };
+		var session_object = {id: session_id};
+		m_parent.model.count('objects', session_object, function(error, count)
+		{
+			var response = { session_id: session_id, action: "resume" };
+			if (error || count < 1)
+			{
+				response.action = "resume_fail";
+			}
+			else
+			{
+				m_object_controller.resume(session_id);
+			}
 			callback(request, response);
+		});
 	}
 
 	// Handles user mouse events from the browser
