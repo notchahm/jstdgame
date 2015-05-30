@@ -1,17 +1,32 @@
 module.exports = function (grunt) {
   'use strict';
   
-  var _src = {
-    vendor: ['public/vendor/js/jquery.js']
+  var m_source_files = {
+    app: ['app/*.js'],
+    test: ['test/*.test.js'],
+    vendor: [
+      'public/vendor/js/jquery.js',
+      'public/vendor/js/three.js'
+    ]
   };
 
   grunt.initConfig({
     pkg: grunt.file.readJSON("package.json"),
     
+    jshint: {
+      options: {
+        jshintrc: true
+      },
+      all: [
+        m_source_files.app,
+        m_source_files.test
+      ]
+    },
+
     uglify: {
       vendor: {
         files: {
-          'public/dist/js/vendor.min.js': _src.vendor
+          'public/dist/js/vendor.min.js': m_source_files.vendor
         }
       }
     },
@@ -27,6 +42,11 @@ module.exports = function (grunt) {
       }
     },
 
+    watch: {
+      files: '*/*.js',
+      tasks: ['jshint', 'shell:test']
+    },
+
     shell: {
       bowerInstall: {
         command: 'bower install'
@@ -40,10 +60,15 @@ module.exports = function (grunt) {
         ].join('&&')
       },
 
-      copyJquery: {
+      copyVendor: {
         command: [
-          'cp bower_components/jquery/dist/jquery.js public/vendor/js'
+          'cp bower_components/jquery/dist/jquery.js public/vendor/js',
+          'cp bower_components/threejs/build/three.js public/vendor/js'
         ].join('&&')
+      },
+
+      test: {
+        command: 'mocha'
       },
 
       clean: {
@@ -56,14 +81,21 @@ module.exports = function (grunt) {
   });
 
   grunt.loadNpmTasks("grunt-shell");
+  grunt.loadNpmTasks("grunt-contrib-watch");
+  grunt.loadNpmTasks('grunt-contrib-jshint');
   grunt.loadNpmTasks("grunt-contrib-uglify");
   grunt.loadNpmTasks("grunt-contrib-imagemin");
+
+  grunt.registerTask("default", [
+    "jshint",
+    "shell:test",
+  ]);
 
   grunt.registerTask("build", [
     "shell:clean",
     "shell:makeStructure",
     "shell:bowerInstall",
-    "shell:copyJquery",
+    "shell:copyVendor",
     "uglify:vendor",
     "imagemin:production"
   ]);

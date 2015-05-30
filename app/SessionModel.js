@@ -3,14 +3,11 @@
 // The data/model is implemented using MongoDB as persistent
 //  storage for game objects in the backend
 
-
-var mongodb = require('mongodb').MongoClient;
-
-"use strict";
-
 // This handles data storage and maniuplation for object-related objects
 var session_model = function SessionModel(parent)
 {
+	"use strict";
+
 	//private members
 	var m_parent = parent;
 	var m_db;
@@ -20,18 +17,18 @@ var session_model = function SessionModel(parent)
 	{
 		m_db = database;
 		m_collection = m_db.collection('sessions');
-	}
+	};
 
 	this.add = function(object, callback)
 	{
 		m_collection.insert(object, callback);
-	}
+	};
 
 	this.remove = function(object_id, callback)
 	{
 		var criteria = {_id: object_id};
 		m_collection.remove(criteria, callback);
-	}
+	};
 
 	this.get_count = function(session_id, callback)
 	{
@@ -43,7 +40,7 @@ var session_model = function SessionModel(parent)
 	{
 		var criteria = { id: session_id };
 		m_collection.find(criteria).toArray(callback);
-	}
+	};
 
 	this.clear = function(collection, callback)
 	{
@@ -51,6 +48,6 @@ var session_model = function SessionModel(parent)
 		callback();
 	};
 
-}
+};
 
 module.exports = session_model;

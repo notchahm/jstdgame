@@ -2,16 +2,15 @@
 // This contains the server-side javascript object for jstdgame.
 // It initializes and stores the three components in an MVC architecture
 
-
 var ServerModel = require('./ServerModel');
 var ServerView = require('./ServerView');
 var ServerController = require('./ServerController');
 
-"use strict";
-
 // This is the top-level JavaScript object for the game
 function GameServer(port)
 {
+	"use strict";
+
     this.model = new ServerModel(this);
 	this.model.start();
     this.view = new ServerView(this);
@@ -20,4 +19,5 @@ function GameServer(port)
 	this.controller.start(port + 1);
 }
 
-var server = new GameServer(8888);
+module.exports =  new GameServer(8888);
+

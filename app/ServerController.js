@@ -3,15 +3,14 @@
 // The ServerController uses websockets to relay communications with the
 //  browser, interface with the database, and drive server-generated game events
 
-
 var WebSocketServer = require('ws').Server;
 var ObjectController = require('./ObjectController');
-
-"use strict";
 
 // This is the JavaScript controller object for the game
 var server_controller = function ServerController(parent)
 {
+	"use strict";
+
 	//private members
 	var m_this = this;
 	var m_parent = parent;		//ref to top-level GameServer
@@ -19,6 +18,10 @@ var server_controller = function ServerController(parent)
 	var m_server;				//WebSocketServer object
 	var m_sessions = {};		//maps session ids to websocket objects
 	var m_object_controller = new ObjectController(this, m_parent.model);
+	var m_session_model = parent.model.get_session_model();
+
+	//constants
+	var BLOCKS_PER_COLUMN = 128;
 
 	//private methods
 
@@ -26,9 +29,9 @@ var server_controller = function ServerController(parent)
 	var send_reply = function(request, response)
 	{
 		var message = JSON.stringify(response);
-		console.log('sending reply %s', message);
+//		console.log('sending reply %s', message);
 		request.socket.send(message);
-	}
+	};
 
 	// checks the request type for incoming messages and routes them 
 	// to the appropriate handler function
@@ -36,55 +39,74 @@ var server_controller = function ServerController(parent)
 	{
 		var request = {};
 		request.socket = socket;
-		request.message = JSON.parse(message);
-		if (request.message.method == 'SETUP')
+		try
+		{
+			request.message = JSON.parse(message);
+		}
+		catch (e)
+		{
+			var response = {session_id: request.session_id, error: "invalid request mesage"};
+			send_reply(request, response);
+			return;
+		}
+		if (request.message.method === 'SETUP')
 		{
 			new_session(request, send_reply);
 		}
-		else if (request.message.method == 'RESUME')
+		else if (request.message.method === 'RESUME')
 		{
 			resume_session(request, send_reply);
 		}
-		else if (request.message.method == 'MOUSE')
+		else if (request.message.method === 'MOUSE')
 		{
 			handle_mouse(request, send_reply);
 		}
-		console.log('received %s', message);
-	}
+		//console.log('received %s', message);
+	};
 
 	// randomly generates a locally unique request id (32-bit),
 	// checking for duplicates in the database and inserting if unique
-	var generate_session_id = function(callback)
+	var generate_session = function(aspect_ratio, callback)
 	{
 		var unique_id = Math.floor(Math.random() * 0xffffffff).toString(16);
-		var session_object = {id: unique_id};
-		m_parent.model.count('sessions', session_object, function(error, count)
+		var session_object =
 		{
-			if (count != 0)
-				generate_session_id(callback);
+			id: unique_id,
+			height: BLOCKS_PER_COLUMN,
+			width: BLOCKS_PER_COLUMN * aspect_ratio
+		};
+		m_session_model.get_count(unique_id, function(error, count)
+		{
+			if (count !== 0)
+			{
+				generate_session(aspect_ratio, callback);
+			}
 			else
 			{
-				m_parent.model.insert('sessions', session_object, 
-				function(error, results)
+				m_session_model.add( session_object, function(error, results)
 				{
-					callback(unique_id);
+					if (!error && results.length > 0)
+					{
+						callback(session_object);
+					}
 				});
 			}
 		});
-	}
+	};
 
-	var spawn_initial_objects = function(session_id, dimensions)
+	var spawn_initial_objects = function(session)
 	{
-		var init_pos = [dimensions.width/2, dimensions.height/2];
+		var session_id = session.id;
+		var init_pos = [session.width/2, session.height/2];
 		var init_vel = [0,0];
 		m_object_controller.spawn(session_id, "base", init_pos, init_vel);
-		init_pos = [dimensions.width/2, 0];
-		init_vel = [0, 20];
+		init_pos = [session.width/2, 0];
+		init_vel = [0, 3];
 		m_object_controller.spawn(session_id, "foe", init_pos, init_vel);
-		init_pos = [0, dimensions.height/2];
-		init_vel = [20, 0];
+		init_pos = [0, session.height/2];
+		init_vel = [3, 0];
 		m_object_controller.spawn(session_id, "foe", init_pos, init_vel);
-	}
+	};
 
 	// for setup requests, we need to generate a new session objects
 	// and insert them into the database
@@ -92,25 +114,23 @@ var server_controller = function ServerController(parent)
 	{
 		//create unique session id
 		var response = {};
-		generate_session_id(function(session_id)
+		var aspect_ratio = request.message.width/request.message.height;
+		generate_session(aspect_ratio, function(session_object)
 		{
-			m_sessions[session_id] = { socket: request.socket, id: session_id };
-			response.session_id = session_id;
-			response.action = "setup";
-			callback(request, response);
-			var dimensions_object =
+			m_sessions[session_object.id] = 
 			{
-				session_id: session_id,
-				width: request.message.width,
-				height: request.message.height
+				socket: request.socket, 
+				id: session_object.id 
 			};
-			m_parent.model.insert('dimensions', dimensions_object, function()
-			{
-				spawn_initial_objects(session_id, request.message);
-			});
+			response.session_id = session_object.id;
+			response.action = "setup";
+			response.height = session_object.height;
+			response.width = session_object.width;
+			callback(request, response);
+			spawn_initial_objects(session_object);
 
 		});
-	}
+	};
 
 	// Assosicates session_id with the socket connection and 
 	//  finds existing session objects and resume updating
@@ -118,29 +138,31 @@ var server_controller = function ServerController(parent)
 	{
 		var session_id = request.message.session_id;
 		m_sessions[session_id] = { socket: request.socket, id: session_id };
-		var session_object = {id: session_id};
-		m_parent.model.count('objects', session_object, function(error, count)
+		m_session_model.get_by_id( session_id, function(error, result)
 		{
-			var response = { session_id: session_id, action: "resume" };
-			if (error || count < 1)
+            var response = result[0];
+			if (error || response === undefined)
 			{
-				response.action = "resume_fail";
+				response = {session_id: session_id, action: "resume_fail"};
 			}
 			else
 			{
+				response.session_id = session_id;
+				response.action = "resume";
 				m_object_controller.resume(session_id);
 			}
 			callback(request, response);
 		});
-	}
+	};
 
 	// Handles user mouse events from the browser
 	var handle_mouse = function(request, callback)
 	{
-		var response = {status: "OK", action: "mouse" };
+		var session_id = request.message.session_id;
+		var response = {session_id: session_id, status: "OK", action: "mouse" };
 		m_object_controller.check_hits(request.message);
 		callback(request, response);
-	}
+	};
 
 	//public methods
 
@@ -149,19 +171,20 @@ var server_controller = function ServerController(parent)
 	{
 		m_port = port;
 		m_server = new WebSocketServer({port: port});
-		console.log('WebSocket server listing on port ' + m_port);
+//		console.log('WebSocket server listing on port ' + m_port);
 		m_server.on('connection', function(socket)
 		{
+//			console.log('new connection');
 			socket.on('message', function(message)
 			{
 				route_messages(socket, message);
 			});
 			socket.on('close', function()
 			{
-				console.log('connection closed');
+//				console.log('connection closed');
 				for (var session_index in m_sessions)
 				{
-					if (m_sessions[session_index].socket == socket)
+					if (m_sessions[session_index].socket === socket)
 					{
 						m_object_controller.disconnect(session_index);
 						delete m_sessions[session_index];
@@ -169,7 +192,7 @@ var server_controller = function ServerController(parent)
 				}
 			});
 		});
-	}
+	};
 
 	// Called from children controllers to send update messages to the client
 	this.send_update = function(session_id, update)
@@ -179,14 +202,15 @@ var server_controller = function ServerController(parent)
 		{
 			m_sessions[session_id].socket.send(message, function(error)
 			{
+//console.log(message);
 				if (error)
 				{
 					console.log(error);
 				}
 			});
 		}
-	}
+	};
 
-}
+};
 
 module.exports = server_controller;

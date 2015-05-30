@@ -5,11 +5,11 @@
 
 var ServerModel = require('./ServerModel');
 
-"use strict";
-
 var model = new ServerModel(this);
 model.start(function()
 {
+	"use strict";
+
 	model.clear('objects');
 	model.clear('sessions');
 	model.clear('dimensions');

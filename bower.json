@@ -8,6 +8,7 @@
   "description": "A browser-based tower defense game implemented in javascript",
   "license": "MIT",
   "dependencies": {
-    "jquery": "~2.1.1"
+    "jquery": "~2.1.1",
+    "threejs": "r71"
   }
 }
