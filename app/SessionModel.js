@@ -3,7 +3,7 @@
 // The data/model is implemented using MongoDB as persistent
 //  storage for game objects in the backend
 
-// This handles data storage and maniuplation for object-related objects
+// This handles data storage and manipulation for object-related objects
 var session_model = function SessionModel(parent)
 {
 	"use strict";
