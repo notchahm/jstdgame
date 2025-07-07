@@ -4,7 +4,7 @@
 //  storage for game objects in the backend
 
 
-// This handles data storage and maniuplation for object-related objects
+// This handles data storage and manipulation for object-related objects
 var object_model = function ObjectModel(parent)
 {
 	"use strict";
